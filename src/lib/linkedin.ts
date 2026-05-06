@@ -25,7 +25,7 @@ interface CuriousCoderItem {
 }
 
 export function normalizeLinkedInItem(item: Record<string, unknown>): LinkedInJob {
-  const raw = item as CuriousCoderItem;
+  const raw = item as unknown as CuriousCoderItem;
 
   const description =
     typeof raw.descriptionText === "string" && raw.descriptionText.trim()
