@@ -1,65 +1,115 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useEffect, useState } from "react";
+
+interface Stats {
+  totalJobs: number;
+  relevantJobs: number;
+  applications: number;
+  applied: number;
+  interviews: number;
+  offers: number;
+}
+
+interface RecentApplication {
+  id: string;
+  status: string;
+  createdAt: string;
+  job: { title: string; company: string; location: string };
+}
+
+export default function Dashboard() {
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [recent, setRecent] = useState<RecentApplication[]>([]);
+
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/jobs/search?limit=0").then((r) => r.json()),
+      fetch("/api/applications").then((r) => r.json()),
+    ]).then(([jobs, apps]) => {
+
+      const allApps = apps.applications || [];
+      setStats({
+        totalJobs: jobs.total || 0,
+        relevantJobs: (jobs.jobs || []).filter((j: { isRelevant: boolean }) => j.isRelevant).length,
+        applications: allApps.length,
+        applied: allApps.filter((a: RecentApplication) => a.status === "applied").length,
+        interviews: allApps.filter((a: RecentApplication) => a.status === "interview").length,
+        offers: allApps.filter((a: RecentApplication) => a.status === "offer").length,
+      });
+      setRecent(allApps.slice(0, 5));
+    });
+  }, []);
+
+  const statCards = stats
+    ? [
+        { label: "Jobs Found", value: stats.totalJobs, color: "text-accent" },
+        { label: "Relevant", value: stats.relevantJobs, color: "text-success" },
+        { label: "Applications", value: stats.applications, color: "text-warning" },
+        { label: "Applied", value: stats.applied, color: "text-accent" },
+        { label: "Interviews", value: stats.interviews, color: "text-warning" },
+        { label: "Offers", value: stats.offers, color: "text-success" },
+      ]
+    : [];
+
+  const statusColors: Record<string, string> = {
+    pending: "bg-yellow-500/10 text-yellow-500",
+    applied: "bg-blue-500/10 text-blue-500",
+    interview: "bg-purple-500/10 text-purple-500",
+    rejected: "bg-red-500/10 text-red-500",
+    offer: "bg-green-500/10 text-green-500",
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="max-w-5xl">
+      <h1 className="text-2xl font-bold mb-1">Dashboard</h1>
+      <p className="text-muted text-sm mb-6">Your job application overview</p>
+
+      {stats && (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-8">
+          {statCards.map((s) => (
+            <div key={s.label} className="bg-card border border-border rounded-lg p-4">
+              <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
+              <p className="text-xs text-muted mt-1">{s.label}</p>
+            </div>
+          ))}
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+      )}
+
+      <div className="bg-card border border-border rounded-lg">
+        <div className="p-4 border-b border-border">
+          <h2 className="font-semibold text-sm">Recent Applications</h2>
         </div>
-      </main>
+        {recent.length === 0 ? (
+          <div className="p-8 text-center text-muted text-sm">
+            No applications yet. Start by{" "}
+            <a href="/jobs" className="text-accent underline">
+              searching for jobs
+            </a>
+            .
+          </div>
+        ) : (
+          <div className="divide-y divide-border">
+            {recent.map((app) => (
+              <div key={app.id} className="p-4 flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium">{app.job.title}</p>
+                  <p className="text-xs text-muted">
+                    {app.job.company} · {app.job.location}
+                  </p>
+                </div>
+                <span
+                  className={`text-xs px-2.5 py-1 rounded-full font-medium capitalize ${
+                    statusColors[app.status] || ""
+                  }`}
+                >
+                  {app.status}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
